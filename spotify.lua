@@ -31,54 +31,49 @@ while true do
 
     -- Make the HTTP GET request.
     local response = http.get(API_URL)
-    if not response then
-        print("Error: Failed to fetch data from API.")
-        os.sleep(5)
-        goto continue_loop
-    end
+    if response then
+        local data_str = response.readAll()
+        response.close()
 
-    local data_str = response.readAll()
-    response.close()
+        -- Safely decode the JSON response.
+        local ok, data = pcall(json_decode, data_str)
+        if ok and data then
+            if data.is_playing and data.item then
+                -- Extract data from the response.
+                local track_name = data.item.name
+                local artists = get_artist_names(data.item.artists)
+                local progress_ms = data.progress_ms
+                local duration_ms = data.item.duration_ms
 
-    -- Safely decode the JSON response.
-    local ok, data = pcall(json_decode, data_str)
-    if not ok or not data then
-        print("Error: Failed to parse JSON response.")
-        os.sleep(5)
-        goto continue_loop
-    end
+                -- Format for display.
+                local progress_str = format_time(progress_ms)
+                local duration_str = format_time(duration_ms)
 
-    if data.is_playing and data.item then
-        -- Extract data from the response.
-        local track_name = data.item.name
-        local artists = get_artist_names(data.item.artists)
-        local progress_ms = data.progress_ms
-        local duration_ms = data.item.duration_ms
+                -- Print track info.
+                print("Now Playing on Spotify:")
+                print("-----------------------")
+                print("Track: " .. track_name)
+                print("Artist(s): " .. artists)
+                print(string.format("\n%s / %s", progress_str, duration_str))
 
-        -- Format for display.
-        local progress_str = format_time(progress_ms)
-        local duration_str = format_time(duration_ms)
+                -- Draw progress bar.
+                local term_width, _ = term.getSize()
+                local progress_bar_width = term_width - 2 -- for [ and ]
+                local progress = progress_ms / duration_ms
+                local filled_width = math.floor(progress * progress_bar_width)
+                local empty_width = progress_bar_width - filled_width
 
-        -- Print track info.
-        print("Now Playing on Spotify:")
-        print("-----------------------")
-        print("Track: " .. track_name)
-        print("Artist(s): " .. artists)
-        print(string.format("\n%s / %s", progress_str, duration_str))
-
-        -- Draw progress bar.
-        local term_width, _ = term.getSize()
-        local progress_bar_width = term_width - 2 -- for [ and ]
-        local progress = progress_ms / duration_ms
-        local filled_width = math.floor(progress * progress_bar_width)
-        local empty_width = progress_bar_width - filled_width
-        
-        local progress_bar = "[" .. string.rep("=", filled_width) .. string.rep(" ", empty_width) .. "]"
-        print(progress_bar)
+                local progress_bar = "[" .. string.rep("=", filled_width) .. string.rep(" ", empty_width) .. "]"
+                print(progress_bar)
+            else
+                print("Spotify is not currently playing a track.")
+            end
+        else
+            print("Error: Failed to parse JSON response.")
+        end
     else
-        print("Spotify is not currently playing a track.")
+        print("Error: Failed to fetch data from API.")
     end
 
-    ::continue_loop::
     os.sleep(5) -- Refresh every 5 seconds.
 end

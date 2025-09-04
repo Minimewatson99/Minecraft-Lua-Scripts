@@ -1,12 +1,13 @@
 -- Prints the public IP address by calling an external service.
--- Requires the 'luasocket' library to be installed.
+-- Requires 'powershell' to be available in the system's PATH.
 
-local http = require("socket.http")
-local body, status = http.request("http://icanhazip.com")
-
-if body then
+local command = 'powershell -NoProfile -Command "Invoke-RestMethod http://icanhazip.com"'
+local handle = io.popen(command)
+if handle then
+  local ip = handle:read('*a')
+  handle:close()
   -- Trim leading/trailing whitespace (including newlines) from the output
-  print(body:match('^%s*(.-)%s*$'))
+  print(ip:match('^%s*(.-)%s*$'))
 else
-  print("Error: Could not retrieve public IP address. Details: " .. tostring(status))
+  print("Error: Could not execute command. Is PowerShell available in your PATH?")
 end
